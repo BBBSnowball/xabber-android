@@ -17,8 +17,13 @@ package com.xabber.android.data.notification;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import android.app.Notification;
 import android.app.PendingIntent;
@@ -46,6 +51,7 @@ import com.xabber.android.data.account.OnAccountRemovedListener;
 import com.xabber.android.data.connection.ConnectionState;
 import com.xabber.android.data.extension.avatar.AvatarManager;
 import com.xabber.android.data.extension.muc.MUCManager;
+import com.xabber.android.data.message.AbstractChat;
 import com.xabber.android.data.message.MessageItem;
 import com.xabber.android.data.message.MessageManager;
 import com.xabber.android.data.message.chat.ChatManager;
@@ -459,6 +465,35 @@ public class NotificationManager implements OnInitializedListener,
 			notify(PERSISTENT_NOTIFICATION_ID, persistentNotification);
 		} else {
 			notificationManager.cancel(PERSISTENT_NOTIFICATION_ID);
+		}
+		
+		// send to Pebble
+		if (ticker != null) {
+			// see http://developer.getpebble.com/1/03_API_Reference/03_Android/#notifications
+		    final Intent i = new Intent("com.getpebble.action.SEND_NOTIFICATION");
+
+		    final Map<String, Object> data = new HashMap<String, Object>();
+		    final AbstractChat chat = ticker.getChat();
+		    String title = "Xabber";
+		    if (chat != null && chat.getUser() != null)
+		    	title += " - " + chat.getUser();
+		    if (ticker.getAction() != null)
+		    	title += " - " + ticker.getAction().name();
+		    if (ticker.getTag() != null)
+		    	title += " - " + ticker.getTag();
+		    if (title.length() > "Xabber - ".length())
+		    	title = title.substring("Xabber - ".length());
+		    data.put("title", title);
+		    data.put("body", ticker.getText());
+		    final JSONObject jsonData = new JSONObject(data);
+		    final String notificationData = new JSONArray().put(jsonData).toString();
+
+		    i.putExtra("messageType", "PEBBLE_ALERT");
+		    i.putExtra("sender", "Xabber");
+		    i.putExtra("notificationData", notificationData);
+
+		    //Log.d(TAG, "About to send a modal alert to Pebble: " + notificationData);
+		    this.application.sendBroadcast(i);
 		}
 	}
 
